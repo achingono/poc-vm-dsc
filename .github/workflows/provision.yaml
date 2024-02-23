@@ -1,0 +1,195 @@
+# This workflow deploys the full solution
+
+name: Provision Infrastructure
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - dev
+      - develop
+      - 'features/*'
+    paths:
+      - 'iac/**'
+
+jobs:
+
+  environment:
+    name: Determine Environment Name
+    uses: ./.github/workflows/environment.yaml     
+
+  validate:
+    needs: [environment]
+    name: Validate Environment Configuration
+    uses: ./.github/workflows/validate.yaml
+    with:
+      environment: ${{ needs.environment.outputs.name }}
+    secrets: 
+      AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+
+  package:
+    needs: [validate]
+    name: Package DSC Configuration
+    runs-on: windows-latest
+    environment: 
+      name: ${{ needs.environment.outputs.name }}
+    variables:
+      PACKAGE_PATH: .\package\dsc
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Setup PowerShell
+      uses: actions/setup-powershell@v1
+
+    - name: Compile DSC Configuration
+      run: |
+        $ErrorActionPreference = 'Stop'
+        Import-Module .\dsc\ServerConfiguration.ps1 -Force
+        ServerConfiguration -OutputPath ${{ variables.PACKAGE_PATH }}
+        if (-not (Test-Path -Path ${{ variables.PACKAGE_PATH }})) {
+          throw "Compilation failed or no output was created"
+        }
+
+    - name: Zip DSC Configuration
+      run: |
+        # TODO: https://gist.github.com/torkildr/3d4749ebe6d7e1bb9dd4
+        Compress-Archive -Path "${{ variables.PACKAGE_PATH }}\*" -DestinationPath .\package\dsc-.zip
+
+    - name: Upload DSC Package as Artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: Package
+        path: .\package\*
+
+  provision:
+    needs: [environment, validate]
+    name: Provision Infrastructure
+    runs-on: ubuntu-latest
+    environment: 
+      name: ${{ needs.environment.outputs.name }}
+    
+    steps:
+      - uses: actions/checkout@v2   
+      - uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Deploy
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            # provision infrastructure
+            az deployment sub create \
+                --name ${{ vars.AZURE_NAME }} \
+                --location ${{ vars.AZURE_LOCATION }} \
+                --template-file ./iac/main.bicep \
+                --parameters name=${{ vars.AZURE_NAME }} \
+                --parameters location=${{ vars.AZURE_LOCATION }} \
+                --parameters uniqueSuffix=${{ vars.AZURE_SUFFIX }} \
+                --parameters adminUsername=${{ secrets.AZURE_USERNAME }} \
+                --parameters adminPassword=${{ secrets.AZURE_PASSWORD }}
+
+    needs: [environment, upload-bacpac]
+    name: Import Database
+    runs-on: ubuntu-latest
+    environment: 
+      name: ${{ needs.environment.outputs.name }}
+
+    steps:
+      - uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Get Runner IP
+        id: runner-ip
+        run: echo "::set-output name=ip::$(curl -s https://api.ipify.org/)"
+      - name: Create Firewall Rule
+        id: create-rule
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            set -eu
+
+            # Allow runner to access the sql server
+            az sql server firewall-rule create --name AllowGitHubAgent \
+                --resource-group $RESOURCE_GROUP --server $SERVER_NAME \
+                --start-ip-address ${{ steps.runner-ip.outputs.ip }} --end-ip-address ${{ steps.runner-ip.outputs.ip }}
+            
+            # Wait for firewall rule to take effect
+            sleep 30
+
+        env:
+          RESOURCE_GROUP: rg-${{ vars.AZURE_NAME }}-${{ vars.AZURE_SUFFIX }}-${{ vars.AZURE_LOCATION }}
+          SERVER_NAME: sql-${{ vars.AZURE_NAME }}-${{ vars.AZURE_SUFFIX }}
+
+      - name: Check Database
+        id: check
+        run: |
+          # Download SQLCMD from https://github.com/microsoft/go-sqlcmd/releases/latest
+          curl -L https://github.com/microsoft/go-sqlcmd/releases/download/v1.5.0/sqlcmd-v1.5.0-linux-x64.tar.bz2 -o sqlcmd-v1.5.0-linux-x64.tar.bz2
+
+          # Extract the tarball
+          tar -xvf sqlcmd-v1.5.0-linux-x64.tar.bz2
+
+          # Make the sqlcmd binary executable
+          chmod +x sqlcmd
+
+          # Check if the database contains any tables
+          QUERY_RESULT=$(./sqlcmd -S tcp:$SERVER_NAME.database.windows.net,1433 -d $DATABASE_NAME -U ${{ secrets.AZURE_USERNAME }} -P ${{ secrets.AZURE_PASSWORD }} -C -l 30 -Q "SELECT COUNT(*) FROM sys.tables")
+
+          # Return boolean output
+          echo "::set-output name=empty::$(if [[ $QUERY_RESULT =~ [^\d]0[^\d] ]]; then echo "true"; else echo "false"; fi)"
+
+        env:
+          SERVER_NAME: sql-${{ vars.AZURE_NAME }}-${{ vars.AZURE_SUFFIX }}
+          DATABASE_NAME: db-${{ vars.AZURE_NAME }}-${{ vars.AZURE_SUFFIX }}
+
+      - name: Delete Firewall Rule
+        id: delete-rule
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            set -eu
+
+            # Delete firewall rule
+            az sql server firewall-rule delete --name AllowGitHubAgent \
+                --resource-group $RESOURCE_GROUP --server $SERVER_NAME
+
+        env:
+          RESOURCE_GROUP: rg-${{ vars.AZURE_NAME }}-${{ vars.AZURE_SUFFIX }}-${{ vars.AZURE_LOCATION }}
+          SERVER_NAME: sql-${{ vars.AZURE_NAME }}-${{ vars.AZURE_SUFFIX }}
+        if: always()
+
+      - name: Import Database
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            set -eu
+
+            # remove invalid characters from storage account
+            STORAGE_ACCOUNT=$(echo $STORAGE_ACCOUNT | tr -d -c 'a-z0-9')
+
+            # Allow Azure services to access the sql server
+            az sql server firewall-rule create --name AllowAllWindowsAzureIps \
+                --resource-group $RESOURCE_GROUP --server $SERVER_NAME \
+                --start-ip-address 0.0.0.0 --end-ip-address 0.0.0.0
+
+            # import the bacpac file
+            az sql db import --name $DATABASE_NAME \
+                --server $SERVER_NAME --resource-group $RESOURCE_GROUP \
+                --auth-type SQL --admin-user ${{ secrets.AZURE_USERNAME }} --admin-password ${{ secrets.AZURE_PASSWORD }} \
+                --storage-uri https://$STORAGE_ACCOUNT.blob.core.windows.net/$STORAGE_CONTAINER/database.bacpac \
+                --storage-key $(az storage account keys list --account-name $STORAGE_ACCOUNT --resource-group $RESOURCE_GROUP --query "[0].value" -o tsv) \
+                --storage-key-type StorageAccessKey
+
+            # delete the firewall rule
+            az sql server firewall-rule delete --name AllowAllWindowsAzureIps \
+                --resource-group $RESOURCE_GROUP --server $SERVER_NAME
+        env:
+          RESOURCE_GROUP: rg-${{ vars.AZURE_NAME }}-${{ vars.AZURE_SUFFIX }}-${{ vars.AZURE_LOCATION }}
+          STORAGE_ACCOUNT: stg${{ vars.AZURE_NAME }}${{ vars.AZURE_SUFFIX }}
+          STORAGE_CONTAINER: ${{ vars.AZURE_NAME }}-${{ vars.AZURE_SUFFIX }}
+          DATABASE_NAME: db-${{ vars.AZURE_NAME }}-${{ vars.AZURE_SUFFIX }}
+          SERVER_NAME: sql-${{ vars.AZURE_NAME }}-${{ vars.AZURE_SUFFIX }}
+        if: ${{ steps.check.outputs.empty == 'true' }}

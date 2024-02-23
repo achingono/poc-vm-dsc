@@ -1,0 +1,36 @@
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+    secrets:
+      AZURE_CREDENTIALS:
+        required: true
+
+jobs:
+  validate:
+    name: Validate Environment Configuration
+    runs-on: ubuntu-latest
+    environment: 
+      name: ${{ inputs.environment }}
+
+    steps:          
+      - run: |
+          echo "Running on environment ${{ inputs.environment }}"
+          if [ "${{ secrets.AZURE_CREDENTIALS }}" == "" ]; then
+            echo "Please set environment secret 'AZURE_CREDENTIALS' before running this workflow"
+            exit 1
+          fi
+          if [ "${{ vars.AZURE_NAME }}" == "" ]; then
+            echo "Please set environment variable 'AZURE_NAME' before running this workflow"
+            exit 1
+          fi
+          if [ "${{ vars.AZURE_SUFFIX }}" == "" ]; then
+            echo "Please set environment variable 'AZURE_SUFFIX' before running this workflow"
+            exit 1
+          fi
+          if [ "${{ vars.AZURE_LOCATION }}" == "" ]; then
+            echo "Please set environment variable 'AZURE_LOCATION' before running this workflow"
+            exit 1
+          fi
