@@ -45,6 +45,9 @@ jobs:
     - name: Compile DSC Configuration
       run: |
         $ErrorActionPreference = 'Stop'
+        Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted
+        Install-Module PSDesiredStateConfiguration
+        Install-Module xWebAdministration
         Import-Module .\dsc\ServerConfiguration.ps1 -Force
         ServerConfiguration -siteName Poc -applicationPool Poc -OutputPath ${{ env.PACKAGE_PATH }}
         if (-not (Test-Path -Path ${{ env.PACKAGE_PATH }})) {
@@ -56,7 +59,7 @@ jobs:
         # TODO: https://gist.github.com/torkildr/3d4749ebe6d7e1bb9dd4
         Compress-Archive -Path "${{ env.PACKAGE_PATH }}\*" -DestinationPath .\package\configure.zip
 
-    - name: Create WebDeploy
+    - name: Create WebDeploy Package
       run: |
         # Get MSDeploy path
         $msdeploy = "C:\Program Files (x86)\IIS\Microsoft Web Deploy V3\msdeploy.exe";
