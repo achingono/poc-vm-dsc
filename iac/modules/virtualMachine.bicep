@@ -77,3 +77,17 @@ resource virtualMachine 'Microsoft.Compute/virtualMachines@2023-03-01' = {
     }
   }
 }
+
+resource roleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
+  scope: subscription()
+  name: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+}
+
+resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(resourceGroup().id, virtualMachine.id, roleDefinition.id)
+  scope: storageAccount
+  properties: {
+    roleDefinitionId: roleDefinition.id
+    principalId: virtualMachine.identity.principalId
+  }
+}
