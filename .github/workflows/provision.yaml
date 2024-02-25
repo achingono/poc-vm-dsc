@@ -76,7 +76,7 @@ jobs:
         path: .\package\*
 
   provision:
-    needs: [environment, validate]
+    needs: [environment, package]
     name: Provision Infrastructure
     runs-on: ubuntu-latest
     environment: 
