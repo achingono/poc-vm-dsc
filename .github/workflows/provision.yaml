@@ -36,13 +36,11 @@ jobs:
       name: ${{ needs.environment.outputs.name }}
     env:
       PACKAGE_PATH: .\package\dsc
+      SITE_PATH: .\src
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
-
-    - name: Setup PowerShell
-      uses: actions/setup-powershell@v1
 
     - name: Compile DSC Configuration
       run: |
@@ -65,8 +63,8 @@ jobs:
 
         # Create WebDeploy package
         & $msdeploy '-verb:sync' `
-              "-source:iisApp=.\src,includeAcls=false,enable32BitAppOnWin64=false,managedPipelineMode=Integrated,managedRuntimeVersion=v4.0" `
-              "-declareParamFile:$siteCodeFolder\parameters.xml" `
+              "-source:iisApp=${{ env.SITE_PATH }},includeAcls=false,enable32BitAppOnWin64=false,managedPipelineMode=Integrated,managedRuntimeVersion=v4.0" `
+              "-declareParamFile:${{ env.SITE_PATH }}\parameters.xml" `
               "-dest:package=${{ env.PACKAGE_PATH }}\deploy.zip";
 
     - name: Upload Package as Artifact
@@ -88,7 +86,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: Package
-          path: .\package\*
+          path: .\package\
       - uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
