@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<parameters>
+        <parameter name="Decryption Key"
+                description="The key used to decrypt the session data"
+                defaultValue="18F665CA29B4911B0C1755979C15F40466237BC9A101836A5AC6D1CE85D6B022">
+                <parameterEntry kind="XMLFile"
+                        scope="\\web.config$"
+                        match="/configuration/system.web/machineKey/@decryptionKey"
+                />
+        </parameter>
+        <parameter name="Validation Key"
+                description="The key used to validate the session data"
+                defaultValue="1E3D5BABF386E7A89DAE461DF2FA228734680C61">
+                <parameterEntry kind="XMLFile"
+                        scope="\\web.config$"
+                        match="/configuration/system.web/machineKey/@validationKey"
+                />
+        </parameter>
+</parameters>
