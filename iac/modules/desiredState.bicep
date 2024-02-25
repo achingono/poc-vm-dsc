@@ -2,11 +2,12 @@ param name string
 param location string 
 param baseTime string = utcNow()
 
-var functionName = 'InstallIIS'
-var packageName = '${functionName}.zip'
+var functionName = 'ServerConfiguration'
+var bundleName = 'configure.zip'
+var packageName = 'deploy.zip'
 
 var sasProperties = {
-    canonicalizedResource: '/blob/${storageAccount.name}/${container.name}/${packageName}'
+    canonicalizedResource: '/blob/${storageAccount.name}/${container.name}'
     signedResourceTypes: 'sco'
     signedPermission: 'r'
     signedExpiry: dateTimeAdd(baseTime, 'PT1H')
@@ -32,7 +33,33 @@ resource virtualMachine 'Microsoft.Compute/virtualMachines@2023-03-01' existing 
   name: 'vm-${name}'
 }
 
-resource deploymentScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
+resource bundleScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
+  name: 'ds-upload-bundle'
+  location: location
+  kind: 'AzureCLI'
+  properties: {
+    azCliVersion: '2.26.1'
+    timeout: 'PT5M'
+    retentionInterval: 'PT1H'
+    environmentVariables: [
+      {
+        name: 'AZURE_STORAGE_ACCOUNT'
+        value: storageAccount.name
+      }
+      {
+        name: 'AZURE_STORAGE_KEY'
+        secureValue: storageAccount.listKeys().keys[0].value
+      }
+      {
+        name: 'CONTENT'
+        value: loadFileAsBase64('../../package/${bundleName}')
+      }
+    ]
+    scriptContent: 'base64 -d <<< "$CONTENT" > ${bundleName} && az storage blob upload -f ${bundleName} -c ${container.name} -n ${bundleName}'
+  }
+}
+
+resource packageScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
   name: 'ds-upload-package'
   location: location
   kind: 'AzureCLI'
@@ -61,7 +88,7 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
 resource dscExtension 'Microsoft.Compute/virtualMachines/extensions@2018-10-01' = {
   location: location
   parent: virtualMachine
-  dependsOn: [deploymentScript]
+  dependsOn: [bundleScript, packageScript]
   name: 'Microsoft.Powershell.DSC'
   properties: {
     publisher: 'Microsoft.Powershell'
@@ -71,11 +98,17 @@ resource dscExtension 'Microsoft.Compute/virtualMachines/extensions@2018-10-01' 
     settings: {
       wmfVersion: 'latest'
       configuration: {
-        url: '${storageAccount.properties.primaryEndpoints.blob}${container.name}/${packageName}' 
+        url: '${storageAccount.properties.primaryEndpoints.blob}${container.name}/${bundleName}' 
         script: '${functionName}.ps1' 
         function: functionName
       }
-      configurationArguments: {}
+      configurationArguments: {
+        siteName: 'Poc'
+        applicationPool: 'Poc'
+        packageUrl: '${storageAccount.properties.primaryEndpoints.blob}${container.name}/${packageName}?${storageAccount.listAccountSas('2021-04-01', sasProperties).accountSasToken}' 
+        decryptionKey: '18F665CA29B4911B0C1755979C15F40466237BC9A101836A5AC6D1CE85D6B022'
+        validationKey: '1E3D5BABF386E7A89DAE461DF2FA228734680C61'
+      }
     }
     protectedSettings: {
       configurationUrlSasToken: '?${storageAccount.listAccountSas('2021-04-01', sasProperties).accountSasToken}' 

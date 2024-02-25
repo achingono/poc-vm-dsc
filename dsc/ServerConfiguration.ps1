@@ -10,8 +10,6 @@ Configuration ServerConfiguration {
         [Parameter(Mandatory = $true)]
         [string] $packageName,
         [Parameter(Mandatory = $true)]
-        [string] $sqlConnectionString,
-        [Parameter(Mandatory = $true)]
         [string] $decryptionKey,
         [Parameter(Mandatory = $true)]
         [string] $validationKey,
@@ -383,7 +381,6 @@ Configuration ServerConfiguration {
                 }
 
                 # Add parameters
-                AddParameterElement "SQL Connection String" $sqlConnectionString;
                 AddParameterElement "Decryption Key" $decryptionKey;
                 AddParameterElement "Validation Key" $validationKey;
 
@@ -416,5 +413,3 @@ Configuration ServerConfiguration {
         }    
     }            
 }
-
-ServerConfiguration
