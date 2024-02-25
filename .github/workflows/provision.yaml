@@ -49,14 +49,20 @@ jobs:
         Install-Module PSDesiredStateConfiguration
         Install-Module xWebAdministration
         Import-Module .\dsc\ServerConfiguration.ps1 -Force
-        ServerConfiguration -siteName Poc -applicationPool Poc -OutputPath ${{ env.PACKAGE_PATH }}
+        ServerConfiguration -siteName Poc -applicationPool Poc `
+                    -packageUrl https://stg${{ vars.AZURE_NAME }}${{ vars.AZURE_SUFFIX }}.blob.core.windows.net/deployment/deploy.zip `
+                    -packageName deploy.zip `
+                    -decryptionKey '18F665CA29B4911B0C1755979C15F40466237BC9A101836A5AC6D1CE85D6B022' `
+                    -validationKey '1E3D5BABF386E7A89DAE461DF2FA228734680C61' `
+                    -OutputPath ${{ env.PACKAGE_PATH }}
+        
         if (-not (Test-Path -Path ${{ env.PACKAGE_PATH }})) {
           throw "Compilation failed or no output was created"
         }
 
     - name: Zip DSC Configuration
       run: |
-        # TODO: https://gist.github.com/torkildr/3d4749ebe6d7e1bb9dd4
+        # Create zip archive
         Compress-Archive -Path "${{ env.PACKAGE_PATH }}\*" -DestinationPath .\package\configure.zip
 
     - name: Create WebDeploy Package
