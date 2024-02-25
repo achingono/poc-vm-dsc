@@ -72,9 +72,9 @@ jobs:
 
         # Create WebDeploy package
         & $msdeploy '-verb:sync' `
-              "-source:iisApp=${{ env.SITE_PATH }},includeAcls=false,enable32BitAppOnWin64=false,managedPipelineMode=Integrated,managedRuntimeVersion=v4.0" `
-              "-declareParamFile:${{ env.SITE_PATH }}\parameters.xml" `
-              "-dest:package=${{ env.PACKAGE_PATH }}\deploy.zip";
+              "-source:iisApp=$((Get-Item ${{ env.SITE_PATH }}).FullName),includeAcls=false,enable32BitAppOnWin64=false,managedPipelineMode=Integrated,managedRuntimeVersion=v4.0" `
+              "-declareParamFile:$((Get-Item ${{ env.SITE_PATH }}).FullName)\parameters.xml" `
+              "-dest:package=$((Get-Item ${{ env.PACKAGE_PATH }}).FullName)\deploy.zip";
 
     - name: Upload Package as Artifact
       uses: actions/upload-artifact@v2
