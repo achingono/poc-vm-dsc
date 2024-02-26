@@ -17,6 +17,7 @@ Configuration ServerConfiguration {
         [string] $downloadPath = "C:\Deploy\Packages"
     )
 
+    #Install-Module -Name xWebAdministration -Force
     Import-DscResource -ModuleName PSDesiredStateConfiguration, xWebAdministration
 
     Node localhost {
@@ -122,27 +123,15 @@ Configuration ServerConfiguration {
             Name      = "Web-Scripting-Tools"
         }
 
-        WindowsOptionalFeature IISDefaultDocument {
+        WindowsFeature WebDefaultDoc {
             DependsOn = "[WindowsFeature]IIS"
-            Ensure    = "Enable"
-            Name      = "IIS-DefaultDocument"
-        }
-
-        WindowsOptionalFeature IISHttpErrors {
-            DependsOn = "[WindowsFeature]IIS"
-            Ensure    = "Enable"
-            Name      = "IIS-HttpErrors"
-        }
-
-        WindowsOptionalFeature IISManagementService {
-            DependsOn = "[WindowsFeature]IIS"
-            Ensure    = "Enable"
-            Name      = "IIS-ManagementService"
+            Ensure    = "Present"
+            Name      = "Web-Default-Doc"
         }
 
         # Enable remote management for IIS
         Registry EnableRemoteManagement {
-            DependsOn = "[WindowsOptionalFeature]IISManagementService"
+            DependsOn = "[WindowsFeature]WebMgmtService"
             Key       = "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\WebManagement\Server"
             ValueName = "EnableRemoteManagement"
             ValueType = "Dword"
@@ -152,6 +141,7 @@ Configuration ServerConfiguration {
         }
 
         Registry EnableLogging {
+            DependsOn = "[WindowsFeature]WebMgmtService"
             Key       = "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\WebManagement\Server"
             ValueName = "EnableLogging"
             ValueType = "Dword"
@@ -161,6 +151,7 @@ Configuration ServerConfiguration {
         }
 
         Registry TracingEnabled {
+            DependsOn = "[WindowsFeature]WebMgmtService"
             Key       = "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\WebManagement\Server"
             ValueName = "TracingEnabled"
             ValueType = "Dword"
@@ -220,7 +211,7 @@ Configuration ServerConfiguration {
             Name      = "Microsoft Web Deploy 3.6"
             ProductId = "{6773A61D-755B-4F74-95CC-97920E45E696}"
             Arguments = "ADDLOCAL=ALL /quiet /norestart"
-            DependsOn = "[WindowsOptionalFeature]IISManagementService"
+            DependsOn = "[WindowsFeature]WebMgmtService"
         }
 
         # Unlock the IIS configuration
