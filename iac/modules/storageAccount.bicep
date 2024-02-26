@@ -39,7 +39,7 @@ resource privateEndpoint 'Microsoft.Network/privateEndpoints@2023-09-01' = {
 
 resource privateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = {
   name: 'privatelink.blob.core.windows.net'
-  location: location
+  location: 'global'
 }
 
 resource zoneLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2018-09-01' = {
