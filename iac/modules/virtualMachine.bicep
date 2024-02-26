@@ -1,6 +1,6 @@
 param name string
 param location string 
-param size string = 'Standard_D4ads_v5'
+param size string = 'Standard_B2s'
 param publisher string = 'MicrosoftWindowsServer'
 param offer string = 'WindowsServer'
 param sku string = '2022-Datacenter'
