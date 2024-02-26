@@ -172,16 +172,16 @@ Configuration ServerConfiguration {
         Package VCRedist2017x64 {
             Ensure    = "Present"
             Path      = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
-            Name      = "Microsoft Visual C++ 2017 Redistributable (x64)"
-            ProductId = "{74d0e5db-b326-4dae-a6b2-9d6e5a6097d1}"
+            Name      = "Microsoft Visual C++ 2022 X64 Additional Runtime - 14.38.33135"
+            ProductId = "{19AFE054-CA83-45D5-A9DB-4108EF4BD391}"
             Arguments = "/install /quiet /norestart"
         }
 
         Package VCRedist2017x86 {
             Ensure    = "Present"
             Path      = "https://aka.ms/vs/17/release/vc_redist.x86.exe"
-            Name      = "Microsoft Visual C++ 2017 Redistributable (x86)"
-            ProductId = "{e2803110-78b3-4664-a479-3611a381656a}"
+            Name      = "Microsoft Visual C++ 2022 X86 Additional Runtime - 14.38.33135"
+            ProductId = "{9C19C103-7DB1-44D1-A039-2C076A633A38}"
             Arguments = "/install /quiet /norestart"
         }
 
@@ -189,8 +189,8 @@ Configuration ServerConfiguration {
         Package ODBCDriver {
             Ensure    = "Present"
             Path      = "https://download.microsoft.com/download/f/1/3/f13ce329-0835-44e7-b110-44decd29b0ad/en-US/19.3.1.0/x64/msoledbsql.msi"
-            Name      = "Microsoft ODBC Driver 17 for SQL Server"
-            ProductId = "{4F7D2B1E-4B6B-4A1A-B50A-7A449A6EE5B3}"
+            Name      = "Microsoft OLE DB Driver 19 for SQL Server"
+            ProductId = "{06D41C8F-B812-4625-B035-2209B1AF94B1}"
             Arguments = "IACCEPTMSOLEDBSQLLICENSETERMS=YES /quiet /norestart"
         }
 
@@ -199,7 +199,7 @@ Configuration ServerConfiguration {
             Ensure    = "Present"
             Path      = "https://download.microsoft.com/download/1/2/8/128E2E22-C1B9-44A4-BE2A-5859ED1D4592/rewrite_amd64_en-US.msi"
             Name      = "IIS URL Rewrite Module 2"
-            ProductId = "{C7C3A5D6-8F8D-44B6-8C2E-4E9CD7B2E5A7}"
+            ProductId = "{9BCA2118-F753-4A1E-BCF3-5A820729965C}"
             Arguments = "/quiet /norestart"
             DependsOn = "[WindowsFeature]IIS"
         }
