@@ -97,7 +97,7 @@ jobs:
       CONFIG_CONTAINER: configurations
       RESOURCE_GROUP: rg-${{ vars.AZURE_NAME }}-${{ vars.AZURE_SUFFIX }}-${{ vars.AZURE_LOCATION }}
       LOCATION: ${{ vars.AZURE_LOCATION }}
-      STORAGE_ACCOUNT: $(echo "stg${{ vars.AZURE_NAME }}${{ vars.AZURE_SUFFIX }}" | tr -d -c 'a-z0-9')
+      STORAGE_ACCOUNT: stg${{ vars.AZURE_NAME }}${{ vars.AZURE_SUFFIX }}
 
     steps:
       - uses: actions/checkout@v2   
@@ -124,6 +124,9 @@ jobs:
         uses: azure/CLI@v1
         with:
           inlineScript: |
+            # remove invalid characters from storage account
+            STORAGE_ACCOUNT=$(echo $STORAGE_ACCOUNT | tr -d -c 'a-z0-9')
+
             # Check if the storage account exists
             accountExists=$(az storage account list --resource-group $RESOURCE_GROUP --query "[?name=='$STORAGE_ACCOUNT'].name" -o tsv)
 
@@ -140,10 +143,14 @@ jobs:
             else
                 echo "The storage account '$STORAGE_ACCOUNT' already exists in the resource group '$RESOURCE_GROUP'."
             fi
+
       - name: Create Blob Containers
         uses: azure/CLI@v1
         with:
           inlineScript: |
+            # remove invalid characters from storage account
+            STORAGE_ACCOUNT=$(echo $STORAGE_ACCOUNT | tr -d -c 'a-z0-9')
+
             # Create blob containers if they do not exist
             az storage container create \
                 --account-name $STORAGE_ACCOUNT \
@@ -159,6 +166,9 @@ jobs:
         uses: azure/CLI@v1
         with:
           inlineScript: |
+            # remove invalid characters from storage account
+            STORAGE_ACCOUNT=$(echo $STORAGE_ACCOUNT | tr -d -c 'a-z0-9')
+
             # Upload DSC configuration
             az storage blob upload \
                 --account-name $STORAGE_ACCOUNT \
@@ -171,6 +181,9 @@ jobs:
         uses: azure/CLI@v1
         with:
           inlineScript: |
+            # remove invalid characters from storage account
+            STORAGE_ACCOUNT=$(echo $STORAGE_ACCOUNT | tr -d -c 'a-z0-9')
+
             # Upload WebDeploy package
             az storage blob upload \
                 --account-name $STORAGE_ACCOUNT \
