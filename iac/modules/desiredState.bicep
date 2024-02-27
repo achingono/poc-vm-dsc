@@ -4,13 +4,13 @@ param baseTime string = utcNow()
 
 var functionName = 'ServerConfiguration'
 var scriptName = 'ServerConfiguration.ps1'
-var bundleName = '${functionName}.zip'
+var bundleName = '${functionName}-v1.1.zip'
 var packageName = 'deploy.zip'
 
 var sasProperties = {
-    canonicalizedResource: '/blob/${storageAccount.name}/${container.name}'
+    canonicalizedResource: '/blob/${storageAccount.name}'
     signedResourceTypes: 'sco'
-    signedPermission: 'r'
+    signedPermission: 'rl'
     signedExpiry: dateTimeAdd(baseTime, 'PT1H')
     signedProtocol: 'https'
     signedServices: 'b'
@@ -124,7 +124,7 @@ resource dscExtension 'Microsoft.Compute/virtualMachines/extensions@2018-10-01' 
     settings: {
       wmfVersion: 'latest'
       configuration: {
-        url: '${storageAccount.properties.primaryEndpoints.blob}${container.name}/${bundleName}' 
+        url: '${storageAccount.properties.primaryEndpoints.blob}dsc/${bundleName}' 
         script: scriptName
         function: functionName
       }
