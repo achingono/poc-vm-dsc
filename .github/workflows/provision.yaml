@@ -87,7 +87,7 @@ jobs:
 
   upload:
     needs: [environment, package]
-    name: Upload Artifacts
+    name: Upload Packages
     runs-on: ubuntu-latest
     environment: 
       name: ${{ needs.environment.outputs.name }}
@@ -218,5 +218,4 @@ jobs:
                             uniqueSuffix=${{ vars.AZURE_SUFFIX }} \
                             adminUsername=${{ secrets.AZURE_USERNAME }} \
                             adminPassword=${{ secrets.AZURE_PASSWORD }} \
-                            adminPublicKey="${{ secrets.AZURE_PUBLICKEY }}" \
                             version=${{ env.VERSION-PREFIX }}.${{ github.run_number }}
