@@ -351,62 +351,9 @@ Configuration ServerConfiguration {
             }
         }
 
-        # Create the parameters file
-        Script CreateParametersFile {
-            DependsOn = "[File]DownloadPath"
-            GetScript  = {
-                @{
-                    Result = ""
-                }
-            }
-            TestScript = {
-                $false
-            }
-            SetScript  = {
-                # Create an instance of the XmlDocument class
-                $xmlDoc = New-Object System.Xml.XmlDocument;
-
-                # Create the XML declaration
-                $xmlDeclaration = $xmlDoc.CreateXmlDeclaration("1.0", "UTF-8", $null);
-                $xmlDoc.AppendChild($xmlDeclaration);
-
-                # Create the root element
-                $parametersElement = $xmlDoc.CreateElement("parameters");
-                $xmlDoc.AppendChild($parametersElement);
-
-                # Helper function to create and append a parameter element
-                Function AddParameterElement($name, $value) {
-                    $parameterElement = $xmlDoc.CreateElement("setParameter");
-                    $nameAttribute = $xmlDoc.CreateAttribute("name");
-                    $valueAttribute = $xmlDoc.CreateAttribute("value");
-
-                    $nameAttribute.Value = $name;
-                    $valueAttribute.Value = [System.Security.SecurityElement]::Escape($value);
-
-                    $parameterElement.Attributes.Append($nameAttribute);
-                    $parameterElement.Attributes.Append($valueAttribute);
-
-                    $parametersElement.AppendChild($parameterElement);
-                }
-
-                # Add parameters
-                AddParameterElement "Decryption Key" $decryptionKey;
-                AddParameterElement "Validation Key" $validationKey;
-
-                # Create the download path if it does not exist
-                if (-not (Test-Path "$using:downloadPath")) {
-                    New-Item -ItemType Directory -Path "$using:downloadPath";
-                }
-
-                # Save the parameters XML file
-                $parametersFile = $packageName -replace ".zip", ".xml";
-                $xmlDoc.Save("$using:downloadPath\$parametersFile");
-            }
-        }
-
         # Deploy the package
         Script DeployWebPackage {
-            DependsOn = "[Script]DownloadWebPackage", "[Script]CreateParametersFile", "[Package]InstallWebDeploy"
+            DependsOn = "[Script]DownloadWebPackage", "[Package]InstallWebDeploy"
             GetScript  = {
                 @{
                     Result = ""
@@ -416,10 +363,9 @@ Configuration ServerConfiguration {
                 $false
             }
             SetScript  = {
-                $packagePath = "$using:downloadPath\$using:packageName";
+                $packagePath = Join-Path -Path $using:downloadPath -ChildPath $using:packageName;
                 $msDeployPath = (Get-ChildItem "HKLM:\SOFTWARE\Microsoft\IIS Extensions\MSDeploy" | Select -Last 1).GetValue("InstallPath");
-                $parametersFile = $using:packageName -replace ".zip", ".xml";
-                $arguments = "-source:package=$packagePath -dest:iisApp=$using:siteName -setParamFile=$using:downloadPath\$parametersFile -verbose -debug";
+                $arguments = "-verb:sync -source:package=$packagePath -dest:iisApp='$using:siteName' -setParam:name='Decryption Key',value='$using:decryptionKey' -setParam:name='Validation Key',value='$using:validationKey' -verbose -debug";
 
                 # Deploy the package to the Site
                 Start-Process "$msDeployPath\msdeploy.exe" $arguments -Verb runas;            
