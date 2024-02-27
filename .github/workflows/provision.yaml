@@ -93,7 +93,7 @@ jobs:
       RESOURCE_GROUP: rg-${{ vars.AZURE_NAME }}-${{ vars.AZURE_SUFFIX }}-${{ vars.AZURE_LOCATION }}
       LOCATION: ${{ vars.AZURE_LOCATION }}
       STORAGE_ACCOUNT: $(echo "stg${{ vars.AZURE_NAME }}${{ vars.AZURE_SUFFIX }}" | tr -d -c 'a-z0-9')
-      VERSION: -v${{ env.VERSION-PREFIX }}.${{ github.run_number }}
+      VERSION: ${{ env.VERSION-PREFIX }}.${{ github.run_number }}
 
     steps:
       - uses: actions/checkout@v2   
@@ -152,7 +152,7 @@ jobs:
             az storage blob upload \
                 --account-name $STORAGE_ACCOUNT \
                 --container-name $CONFIG_CONTAINER \
-                --name ${{ env.CONFIG_PACKAGE }}${{ env.VERSION }}.zip \
+                --name ${{ env.CONFIG_PACKAGE }}-v${{ env.VERSION }}.zip \
                 --file ${{ env.PACKAGE_PATH }}/${{ env.CONFIG_PACKAGE }}.zip \
                 --overwrite
 
@@ -164,7 +164,7 @@ jobs:
             az storage blob upload \
                 --account-name $STORAGE_ACCOUNT \
                 --container-name $DEPLOY_CONTAINER \
-                --name ${{ env.DEPLOY_PACKAGE }}${{ env.VERSION }}.zip \
+                --name ${{ env.DEPLOY_PACKAGE }}-v${{ env.VERSION }}.zip \
                 --file ${{ env.PACKAGE_PATH }}/${{ env.DEPLOY_PACKAGE }}.zip \
                 --overwrite
 
