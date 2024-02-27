@@ -131,7 +131,8 @@ jobs:
                 --location $LOCATION \
                 --sku Standard_LRS \
                 --kind StorageV2 \
-                --access-tier Hot
+                --access-tier Hot \
+                --default-share-permission None
 
       - name: Create Blob Containers
         uses: azure/CLI@v1
