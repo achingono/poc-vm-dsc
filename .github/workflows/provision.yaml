@@ -77,7 +77,7 @@ jobs:
         & $msdeploy '-verb:sync' `
               "-source:iisApp=$((Get-Item ${{ env.SITE_PATH }}).FullName),includeAcls=false,enable32BitAppOnWin64=false,managedPipelineMode=Integrated,managedRuntimeVersion=v4.0" `
               "-declareParamFile:$((Get-Item ${{ env.SITE_PATH }}).FullName)\parameters.xml" `
-              "-dest:package=$((Get-Item ${{ env.PACKAGE_PATH }}).Parent.FullName)\${{ env.DEPLOY_PACKAGE }}.zip";
+              "-dest:package=$((Get-Item ${{ env.PACKAGE_PATH }}).FullName)\${{ env.DEPLOY_PACKAGE }}.zip";
 
     - name: Upload Package as Artifact
       uses: actions/upload-artifact@v2
