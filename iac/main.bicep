@@ -8,6 +8,7 @@ param uniqueSuffix string
 param adminUsername string
 @secure()
 param adminPassword string
+param version string = ''
 
 var resourceName = '${name}-${uniqueSuffix}'
 
@@ -134,5 +135,6 @@ module desiredState 'modules/desiredState.bicep' = {
   params: {
     name: resourceName
     location: location
+    version: version
   }
 }

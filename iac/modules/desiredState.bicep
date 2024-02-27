@@ -1,10 +1,11 @@
 param name string
 param location string 
+param version string = ''
 param baseTime string = utcNow()
 
 var functionName = 'ServerConfiguration'
 var scriptName = 'ServerConfiguration.ps1'
-var bundleName = '${functionName}-v1.1.zip'
+var bundleName = '${functionName}${empty(version) ? '' : '-v'}${version}.zip'
 var packageName = 'deploy.zip'
 
 var sasProperties = {

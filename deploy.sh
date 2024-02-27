@@ -1,4 +1,4 @@
-while getopts n:l:c:u:p: flag
+while getopts n:l:c:u:p:v: flag
 do
     case "${flag}" in
         n) NAME=${OPTARG};;
@@ -6,6 +6,7 @@ do
         c) CODE=${OPTARG};;
         u) USERNAME=${OPTARG};;
         p) PASSWORD=${OPTARG};;
+        v) VERSION=${OPTARG};;
     esac
 done
 
@@ -21,16 +22,25 @@ fi
 SECONDS=0
 echo "Start time: $(date)"
 
+# upload server configuration package to storage account
+az storage blob upload \
+    --account-name stg$NAME$CODE \
+    --container-name dsc \
+    --name ServerConfiguration-v$VERSION.zip \
+    --file ./artifacts/ServerConfiguration.zip \
+    --overwrite
+
 # provision infrastructure
 az deployment sub create \
     --name $NAME \
     --location $LOCATION \
     --template-file ./iac/main.bicep \
     --parameters name=$NAME \
-    --parameters location=$LOCATION \
-    --parameters uniqueSuffix=$CODE \
-    --parameters adminUsername=$USERNAME \
-    --parameters adminPassword=$PASSWORD
+                location=$LOCATION \
+                uniqueSuffix=$CODE \
+                adminUsername=$USERNAME \
+                adminPassword=$PASSWORD \
+                version=$VERSION
 
 duration=$SECONDS
 echo "End time: $(date)"
