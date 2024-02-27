@@ -34,7 +34,7 @@ jobs:
 
   package:
     needs: [validate]
-    name: Package DSC Configuration
+    name: Create Packages
     runs-on: windows-latest
     environment: 
       name: ${{ needs.environment.outputs.name }}
@@ -47,6 +47,10 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v2
 
+    - name: Create Package Folder
+      run: |
+        mkdir ${{ env.PACKAGE_PATH }}
+
     - name: Compile DSC Configuration
       run: |
         $ErrorActionPreference = 'Stop'
@@ -54,7 +58,7 @@ jobs:
         Install-Module PSDesiredStateConfiguration
         Install-Module xWebAdministration
         Install-Module Az.Compute -AllowClobber -Force
-        
+
         $archivePath = Join-Path -Path ${{ env.PACKAGE_PATH }} -ChildPath "${{ env.CONFIG_PACKAGE }}.zip";
 
         Publish-AzVMDscConfiguration (Join-Path -Path ${{ env.DSC_PATH }} -ChildPath "${{ env.CONFIG_PACKAGE }}.ps1") `
