@@ -9,6 +9,8 @@ param adminUsername string
 @secure()
 param adminPassword string
 param version string = ''
+param decryptionKey string
+param validationKey string
 
 var resourceName = '${name}-${uniqueSuffix}'
 
@@ -96,7 +98,6 @@ module blob 'modules/storageBlob.bicep' = {
   ]
   params: {
     name: resourceName
-    blobName: name
   }
 }
 
@@ -136,5 +137,7 @@ module desiredState 'modules/desiredState.bicep' = {
     name: resourceName
     location: location
     version: version
+    decryptionKey: decryptionKey
+    validationKey: validationKey
   }
 }

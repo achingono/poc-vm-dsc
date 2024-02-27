@@ -1,5 +1,4 @@
 param name string
-param blobName string
 
 resource virtualMachine 'Microsoft.Compute/virtualMachines@2023-03-01' existing = {
   name: 'vm-${name}'
@@ -9,14 +8,19 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' existing 
   name: 'stg${replace(name,'-','')}'
 }
 
-resource service 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01' existing = {
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01' existing = {
   name: 'default'
   parent: storageAccount
 }
 
-resource container 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
-  name: blobName
-  parent: service
+resource deployContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  name: 'deployments'
+  parent: blobService
+}
+
+resource configContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  name: 'configurations'
+  parent: blobService
 }
 
 resource roleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
