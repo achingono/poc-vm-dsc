@@ -124,16 +124,22 @@ jobs:
         uses: azure/CLI@v1
         with:
           inlineScript: |
-            # Create storage account if it does not exist
-            az storage account create \
-                --name $STORAGE_ACCOUNT \
-                --resource-group $RESOURCE_GROUP \
-                --location $LOCATION \
-                --sku Standard_LRS \
-                --kind StorageV2 \
-                --access-tier Hot \
-                --default-share-permission None
+            # Check if the storage account exists
+            accountExists=$(az storage account list --resource-group $RESOURCE_GROUP --query "[?name=='$STORAGE_ACCOUNT'].name" -o tsv)
 
+            # Create storage account if it does not exist
+            if [ -z "$accountExists" ]; then
+              az storage account create \
+                  --name $STORAGE_ACCOUNT \
+                  --resource-group $RESOURCE_GROUP \
+                  --location $LOCATION \
+                  --sku Standard_LRS \
+                  --kind StorageV2 \
+                  --access-tier Hot \
+                  --default-share-permission None
+            else
+                echo "The storage account '$STORAGE_ACCOUNT' already exists in the resource group '$RESOURCE_GROUP'."
+            fi
       - name: Create Blob Containers
         uses: azure/CLI@v1
         with:
