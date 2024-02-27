@@ -12,6 +12,10 @@ on:
       - 'features/*'
     paths:
       - 'iac/**'
+env:
+  VERSION-PREFIX: 1.0
+  CONFIG_PACKAGE: ServerConfiguration
+  DEPLOY_PACKAGE: WebDeploy
 
 jobs:
 
@@ -35,8 +39,9 @@ jobs:
     environment: 
       name: ${{ needs.environment.outputs.name }}
     env:
-      PACKAGE_PATH: .\package\dsc
+      PACKAGE_PATH: .\package
       SITE_PATH: .\src
+      DSC_PATH: .\dsc
 
     steps:
     - name: Checkout repository
@@ -48,22 +53,15 @@ jobs:
         Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted
         Install-Module PSDesiredStateConfiguration
         Install-Module xWebAdministration
-        Import-Module .\dsc\ServerConfiguration.ps1 -Force
-        ServerConfiguration -siteName Poc -applicationPool Poc `
-                    -packageUrl https://stg${{ vars.AZURE_NAME }}${{ vars.AZURE_SUFFIX }}.blob.core.windows.net/deployment/deploy.zip `
-                    -packageName deploy.zip `
-                    -decryptionKey '18F665CA29B4911B0C1755979C15F40466237BC9A101836A5AC6D1CE85D6B022' `
-                    -validationKey '1E3D5BABF386E7A89DAE461DF2FA228734680C61' `
-                    -OutputPath ${{ env.PACKAGE_PATH }}
         
-        if (-not (Test-Path -Path ${{ env.PACKAGE_PATH }})) {
+        $archivePath = Join-Path -Path ${{ env.PACKAGE_PATH }} -ChildPath "${{ env.CONFIG_PACKAGE }}.zip";
+
+        Publish-AzVMDscConfiguration (Join-Path -Path ${{ env.DSC_PATH }} -ChildPath "${{ env.CONFIG_PACKAGE }}.ps1") `
+            -OutputArchivePath $archivePath;
+
+        if (-not (Test-Path -Path $archivePath)) {
           throw "Compilation failed or no output was created"
         }
-
-    - name: Zip DSC Configuration
-      run: |
-        # Create zip archive
-        Compress-Archive -Path "${{ env.PACKAGE_PATH }}\*" -DestinationPath .\package\configure.zip
 
     - name: Create WebDeploy Package
       run: |
@@ -74,28 +72,113 @@ jobs:
         & $msdeploy '-verb:sync' `
               "-source:iisApp=$((Get-Item ${{ env.SITE_PATH }}).FullName),includeAcls=false,enable32BitAppOnWin64=false,managedPipelineMode=Integrated,managedRuntimeVersion=v4.0" `
               "-declareParamFile:$((Get-Item ${{ env.SITE_PATH }}).FullName)\parameters.xml" `
-              "-dest:package=$((Get-Item ${{ env.PACKAGE_PATH }}).Parent.FullName)\deploy.zip";
+              "-dest:package=$((Get-Item ${{ env.PACKAGE_PATH }}).Parent.FullName)\${{ env.DEPLOY_PACKAGE }}.zip";
 
     - name: Upload Package as Artifact
       uses: actions/upload-artifact@v2
       with:
         name: Package
-        path: .\package\*
+        path: ${{ env.PACKAGE_PATH }}\*
 
-  provision:
+  upload:
     needs: [environment, package]
     name: Provision Infrastructure
     runs-on: ubuntu-latest
     environment: 
       name: ${{ needs.environment.outputs.name }}
-    
+    env:
+      PACKAGE_PATH: ./package
+      DEPLOY_CONTAINER: deployments
+      CONFIG_CONTAINER: configurations
+      RESOURCE_GROUP: rg-${{ vars.AZURE_NAME }}-${{ vars.AZURE_SUFFIX }}-${{ vars.AZURE_LOCATION }}
+      LOCATION: ${{ vars.AZURE_LOCATION }}
+      STORAGE_ACCOUNT: $(echo "stg${{ vars.AZURE_NAME }}${{ vars.AZURE_SUFFIX }}" | tr -d -c 'a-z0-9')
+      VERSION: -v${{ env.VERSION-PREFIX }}.${{ github.run_number }}
+
     steps:
       - uses: actions/checkout@v2   
       - name: Download Package
         uses: actions/download-artifact@v2
         with:
           name: Package
-          path: .\package\
+          path: ${{ env.PACKAGE_PATH }}/
+
+      - uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Create Resource Group
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            # Create resource group if it does not exist
+            az group create \
+                --name $RESOURCE_GROUP \
+                --location $LOCATION
+
+      - name: Create Storage Account
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            # Create storage account if it does not exist
+            az storage account create \
+                --name $STORAGE_ACCOUNT \
+                --resource-group $RESOURCE_GROUP \
+                --location $LOCATION \
+                --sku Standard_LRS \
+                --kind StorageV2 \
+                --access-tier Hot
+
+      - name: Create Blob Containers
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            # Create blob containers if they do not exist
+            az storage container create \
+                --account-name $STORAGE_ACCOUNT \
+                --name $CONFIG_CONTAINER \
+                --public-access off
+
+            az storage container create \
+                --account-name $STORAGE_ACCOUNT \
+                --name $DEPLOY_CONTAINER \
+                --public-access off        
+
+      - name: Upload DSC Package
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            # Upload DSC configuration
+            az storage blob upload \
+                --account-name $STORAGE_ACCOUNT \
+                --container-name $CONFIG_CONTAINER \
+                --name ${{ env.CONFIG_PACKAGE }}${{ env.VERSION }}.zip \
+                --file ${{ env.PACKAGE_PATH }}/${{ env.CONFIG_PACKAGE }}.zip \
+                --overwrite
+
+      - name: Upload WebDeploy Package
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            # Upload WebDeploy package
+            az storage blob upload \
+                --account-name $STORAGE_ACCOUNT \
+                --container-name $DEPLOY_CONTAINER \
+                --name ${{ env.DEPLOY_PACKAGE }}${{ env.VERSION }}.zip \
+                --file ${{ env.PACKAGE_PATH }}/${{ env.DEPLOY_PACKAGE }}.zip \
+                --overwrite
+
+  provision:
+    needs: [environment, upload]
+    name: Provision Infrastructure
+    runs-on: ubuntu-latest
+    environment: 
+      name: ${{ needs.environment.outputs.name }}
+    env:
+      VERSION: ${{ env.VERSION-PREFIX }}.${{ github.run_number }}
+
+    steps:
+      - uses: actions/checkout@v2   
       - uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
@@ -109,7 +192,9 @@ jobs:
                 --location ${{ vars.AZURE_LOCATION }} \
                 --template-file ./iac/main.bicep \
                 --parameters name=${{ vars.AZURE_NAME }} \
-                --parameters location=${{ vars.AZURE_LOCATION }} \
-                --parameters uniqueSuffix=${{ vars.AZURE_SUFFIX }} \
-                --parameters adminUsername=${{ secrets.AZURE_USERNAME }} \
-                --parameters adminPassword=${{ secrets.AZURE_PASSWORD }}
+                            location=${{ vars.AZURE_LOCATION }} \
+                            uniqueSuffix=${{ vars.AZURE_SUFFIX }} \
+                            adminUsername=${{ secrets.AZURE_USERNAME }} \
+                            adminPassword=${{ secrets.AZURE_PASSWORD }} \
+                            adminPublicKey="${{ secrets.AZURE_PUBLICKEY }}" \
+                            version=${{ env.VERSION }}
