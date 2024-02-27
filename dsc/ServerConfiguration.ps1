@@ -18,7 +18,8 @@ Configuration ServerConfiguration {
     )
 
     #Install-Module -Name xWebAdministration -Force
-    Import-DscResource -ModuleName PSDesiredStateConfiguration, xWebAdministration
+    Import-DscResource -ModuleName PSDesiredStateConfiguration
+    Import-DscResource -ModuleName xWebAdministration
 
     Node localhost {
 
@@ -279,6 +280,7 @@ Configuration ServerConfiguration {
 
         # Update Default IISSite
         xWebsite DefaultSite {
+            DependsOn = "[WindowsFeature]IIS"
             Ensure       = "Present"
             Name         = "Default Web Site"
             State        = "Started"
@@ -294,6 +296,7 @@ Configuration ServerConfiguration {
 
         # Create Application Pool
         xWebAppPool $applicationPool {
+            DependsOn = "[WindowsFeature]IIS"
             Ensure                = "Present"
             Name                  = $applicationPool
             State                 = "Started"
@@ -303,8 +306,15 @@ Configuration ServerConfiguration {
             AutoStart             = $true
         }
 
+        File WebsitePath {
+            Ensure = "Present"
+            Type   = "Directory"
+            DestinationPath = "C:\inetpub\$siteName"
+        }
+
         # Create IISSite
         xWebsite $siteName {
+            DependsOn = "[File]WebsitePath", '[WindowsFeature]IIS', "[xWebAppPool]$applicationPool"
             Ensure          = "Present"
             Name            = $siteName
             State           = "Started"
@@ -319,8 +329,15 @@ Configuration ServerConfiguration {
             )
         }
 
+        File DownloadPath {
+            Ensure = "Present"
+            Type   = "Directory"
+            DestinationPath = $downloadPath
+        }
+
         # Download the package
         Script DownloadWebPackage {
+            DependsOn = "[File]DownloadPath"
             GetScript  = {
                 @{
                     Result = ""
@@ -336,6 +353,7 @@ Configuration ServerConfiguration {
 
         # Create the parameters file
         Script CreateParametersFile {
+            DependsOn = "[File]DownloadPath"
             GetScript  = {
                 @{
                     Result = ""
