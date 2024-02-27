@@ -393,6 +393,11 @@ Configuration ServerConfiguration {
                 AddParameterElement "Decryption Key" $decryptionKey;
                 AddParameterElement "Validation Key" $validationKey;
 
+                # Create the download path if it does not exist
+                if (-not (Test-Path "$using:downloadPath")) {
+                    New-Item -ItemType Directory -Path "$using:downloadPath";
+                }
+
                 # Save the parameters XML file
                 $parametersFile = $packageName -replace ".zip", ".xml";
                 $xmlDoc.Save("$using:downloadPath\$parametersFile");
