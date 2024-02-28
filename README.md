@@ -140,5 +140,5 @@ Clean up the deployment by deleting the single resource group that contains the 
 
 3. Run the script and provide required parameters
     ```
-    ./destroy.sh -n sharedsession -l eastus2 -c poc
+    ./destroy.sh -n dsc -c poc -l eastus2
     ```
