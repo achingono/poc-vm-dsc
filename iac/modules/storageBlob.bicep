@@ -26,7 +26,7 @@ resource configContainer 'Microsoft.Storage/storageAccounts/blobServices/contain
 resource roleDefinition 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
   scope: subscription()
   // https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles
-  name: '0c867c2a-1d8c-454a-a3db-ab2ea1bdc8bb'
+  name: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
 }
 
 resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
