@@ -218,4 +218,6 @@ jobs:
                             uniqueSuffix=${{ vars.AZURE_SUFFIX }} \
                             adminUsername=${{ secrets.AZURE_USERNAME }} \
                             adminPassword=${{ secrets.AZURE_PASSWORD }} \
-                            version=${{ env.VERSION-PREFIX }}.${{ github.run_number }}
+                            version=${{ env.VERSION-PREFIX }}.${{ github.run_number }} \
+                            decryptionKey=${{ secrets.DECRYPTION_KEY }} \
+                            validationKey=${{ secrets.VALIDATION_KEY }}
