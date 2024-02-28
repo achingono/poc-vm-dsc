@@ -22,13 +22,51 @@ fi
 SECONDS=0
 echo "Start time: $(date)"
 
+RESOURCE_GROUP=rg-$NAME-$CODE-$LOCATION
+STORAGE_ACCOUNT=$(echo "stg$NAME$CODE"  | tr -d -c 'a-z0-9')
+CONFIG_CONTAINER=configurations
+DEPLOY_CONTAINER=deployments
+VIRTUAL_MACHINE=vm-$NAME-$CODE
+
+# create resource group
+az group create --name $RESOURCE_GROUP --location $LOCATION
+
+# create storage account
+az storage account create \
+    --name $STORAGE_ACCOUNT \
+    --resource-group $RESOURCE_GROUP \
+    --location $LOCATION \
+    --sku Standard_LRS
+
+# Create blob containers if they do not exist
+az storage container create \
+    --account-name $STORAGE_ACCOUNT \
+    --name $CONFIG_CONTAINER \
+    --public-access off
+
+az storage container create \
+    --account-name $STORAGE_ACCOUNT \
+    --name $DEPLOY_CONTAINER \
+    --public-access off        
+
 # upload server configuration package to storage account
 az storage blob upload \
-    --account-name stg$NAME$CODE \
-    --container-name dsc \
+    --account-name $STORAGE_ACCOUNT \
+    --container-name $CONFIG_CONTAINER \
     --name ServerConfiguration-v$VERSION.zip \
     --file ./artifacts/ServerConfiguration.zip \
     --overwrite
+
+# upload web deploy package to storage account
+az storage blob upload \
+    --account-name $STORAGE_ACCOUNT \
+    --container-name $DEPLOY_CONTAINER \
+    --name WebDeploy-v$VERSION.zip \
+    --file ./artifacts/WebDeploy.zip \
+    --overwrite
+
+# remove invalid characters from storage account
+az vm extension delete --resource-group $RESOURCE_GROUP --vm-name $VIRTUAL_MACHINE --name Microsoft.Powershell.DSC
 
 # provision infrastructure
 az deployment sub create \
