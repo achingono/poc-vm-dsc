@@ -204,6 +204,17 @@ jobs:
       - uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Upload WebDeploy Package
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            # remove invalid characters from storage account
+            az vm extension delete --resource-group $RESOURCE_GROUP --vm-name $VIRTUAL_MACHINE --name Microsoft.Powershell.DSC
+        env:
+          RESOURCE_GROUP: rg-${{ vars.AZURE_NAME }}-${{ vars.AZURE_SUFFIX }}-${{ vars.AZURE_LOCATION }}
+          VIRTUAL_MACHINE: vm-${{ vars.AZURE_NAME }}-${{ vars.AZURE_SUFFIX }}
+
       - name: Deploy
         uses: azure/CLI@v1
         with:
